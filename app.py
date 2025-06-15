@@ -43,6 +43,9 @@ for i in range(st.session_state.model_count):
         key=f"model_select_{i}"
     )
 
+# Background colors
+box_colors = ["#e6f0ff", "#ffe6e6", "#e6ffe6", "#fff0e6", "#f0e6ff"]
+
 # Run button
 if st.button("Generate") and prompt.strip():
     model_inputs = st.session_state.selected_models
@@ -80,10 +83,17 @@ if st.button("Generate") and prompt.strip():
     cols = st.columns(len(responses))
     for i, res in enumerate(responses):
         with cols[i]:
-            st.markdown(f"### {res['model']}")
-            st.info(
-                f"**Duration**: {res['duration']} secs  \n"
-                f"**Eval count**: {res['eval_count']} tokens  \n"
-                f"**Eval rate**: {res['eval_rate']} tokens/s"
+            st.markdown(
+                f"### <span style='color:#3366cc'>{res['model']}</span>" if i % 2 == 0 else f"### <span style='color:#cc0000'>{res['model']}</span>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"""
+                <div style="background-color:#e6f0ff; padding:10px; border-radius:8px; margin-bottom:10px;">
+                    <b>Duration</b>: <span style="color:#3366cc;">{res['duration']} secs</span> &nbsp;
+                    <b>Eval count</b>: <span style="color:green;">{res['eval_count']} tokens</span> &nbsp;
+                    <b>Eval rate</b>: <span style="color:green;">{res['eval_rate']} tokens/s</span>
+                </div>
+                """, unsafe_allow_html=True
             )
             st.write(res["response"])
