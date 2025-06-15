@@ -43,7 +43,7 @@ with st.sidebar:
     run = st.button("Generate")
 
 # Main display area
-st.title("Running LLMs in parallel")
+st.title("Running LLMs in parallel with Ollama")
 
 if run and prompt.strip():
     model_inputs = st.session_state.selected_models
@@ -78,13 +78,25 @@ if run and prompt.strip():
                 "response": f"Error: {e}"
             })
 
+    def get_alternating_color(index):
+        return "blue" if index % 2 == 0 else "red"
+
     cols = st.columns(len(responses))
     for i, res in enumerate(responses):
         with cols[i]:
-            st.markdown(f"### {res['model']}")
-            st.info(
-                f"**Duration**: {res['duration']} secs  \n"
-                f"**Eval count**: {res['eval_count']} tokens  \n"
-                f"**Eval rate**: {res['eval_rate']} tokens/s"
+            model_color = get_alternating_color(i)
+            st.markdown(
+                f"<h3 style='color:{model_color};'>{res['model']}</h3>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"""
+                <div style="background-color:#e6f0ff; padding:10px; border-radius:8px; margin-bottom:10px;">
+                    <b>Duration</b>: <span style="color:#3366cc;">{res['duration']} secs</span> &nbsp;
+                    <b>Eval count</b>: <span style="color:green;">{res['eval_count']} tokens</span> &nbsp;
+                    <b>Eval rate</b>: <span style="color:green;">{res['eval_rate']} tokens/s</span>
+                </div>
+                """,
+                unsafe_allow_html=True
             )
             st.write(res["response"])
