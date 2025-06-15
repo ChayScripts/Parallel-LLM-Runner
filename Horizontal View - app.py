@@ -4,9 +4,24 @@ import time
 
 st.set_page_config(page_title="LLM Comparison", layout="wide")
 
+st.markdown("""
+<style>
+.stButton button {
+    padding: 0px 5px !important;
+    min-width: unset !important;
+    font-size: 10px !important;
+    height: 25px !important;
+    line-height: 1 !important;
+    margin-top: 28px !important;
+}
+div[data-testid="stSelectbox"] > div {
+    margin-right: 0px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("Running LLMs in parallel")
 
-# Get available models
 @st.cache_data
 def get_models():
     try:
@@ -27,42 +42,58 @@ prompt = st.text_area("Prompt", "")
 if "model_count" not in st.session_state:
     st.session_state.model_count = 2
 if "selected_models" not in st.session_state:
-    st.session_state.selected_models = ["", ""]  # initial 2 models
+    st.session_state.selected_models = ["", ""]
 
-# Add model dynamically
-if st.button("Add new model"):
-    st.session_state.model_count += 1
-    st.session_state.selected_models.append("")
+def remove_model(index):
+    if st.session_state.model_count > 1:
+        st.session_state.model_count -= 1
+        st.session_state.selected_models.pop(index)
 
-# Display model selectors
 for i in range(st.session_state.model_count):
-    st.session_state.selected_models[i] = st.selectbox(
-        f"Model {i+1}",
-        models_available,
-        index=0 if i >= len(st.session_state.selected_models) or not st.session_state.selected_models[i] else models_available.index(st.session_state.selected_models[i]),
-        key=f"model_select_{i}"
-    )
+    col1, col2 = st.columns([0.97, 0.02]) 
+    with col1:
+        st.session_state.selected_models[i] = st.selectbox(
+            f"Model {i+1}",
+            models_available,
+            index=0 if i >= len(st.session_state.selected_models) or not st.session_state.selected_models[i] else models_available.index(st.session_state.selected_models[i]),
+            key=f"model_select_{i}"
+        )
+    with col2:
+        st.button("✖", key=f"remove_model_{i}", on_click=remove_model, args=(i,))
 
-# Background colors
-box_colors = ["#e6f0ff", "#ffe6e6", "#e6ffe6", "#fff0e6", "#f0e6ff"]
+selected_models_filtered = [model for model in st.session_state.selected_models if model]
 
-# Run button
-if st.button("Generate") and prompt.strip():
-    model_inputs = st.session_state.selected_models
+_, _, spacer, col_add, col_run = st.columns([0.5, 0.2, 0.1, 0.1, 0.1])
+with col_add:
+    if st.button("Add new model"):
+        st.session_state.model_count += 1
+        st.session_state.selected_models.append("")
+        st.rerun()
+with col_run:
+    run_clicked = st.button("Run Models", type="primary")
+
+if run_clicked and prompt and selected_models_filtered:
     responses = []
 
-    for model in model_inputs:
-        start = time.time()
-        try:
-            response = requests.post(
-                "http://localhost:11434/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
-            ).json()
+    response_placeholders = [st.empty() for _ in selected_models_filtered]
 
-            duration = round(time.time() - start, 2)
-            content = response.get("response", "").strip()
-            eval_count = response.get("eval_count", len(content.split()))
-            eval_rate = response.get("eval_rate", round(eval_count / duration, 2))
+    for i, model in enumerate(selected_models_filtered):
+        try:
+            with st.spinner(f"Running {model}..."):
+                start_time = time.time()
+                res = requests.post(
+                    "http://localhost:11434/api/generate",
+                    json={"model": model, "prompt": prompt, "stream": False},
+                    headers={"Content-Type": "application/json"},
+                )
+                res.raise_for_status()
+                response_data = res.json()
+                end_time = time.time()
+
+            duration = round(end_time - start_time, 2)
+            content = response_data.get("response", "")
+            eval_count = response_data.get("eval_count", len(content.split()))
+            eval_rate = response_data.get("eval_rate", round(eval_count / duration, 2))
 
             responses.append({
                 "model": model,
