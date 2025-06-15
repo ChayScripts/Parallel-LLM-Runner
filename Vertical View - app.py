@@ -23,6 +23,14 @@ div[data-testid="stSelectbox"] {
 div[data-testid="stFormSubmitButton"] + div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] div[data-testid="stHorizontalBlock"] {
     align-items: flex-end;
 }
+/* Style for the "Run Models" button */
+button[data-testid="stButton-primary"] {
+    background-color: #FF0000 !important; /* Red background */
+    color: white !important; /* White text */
+    border-radius: 8px !important; /* Rounded corners */
+    padding: 10px 20px !important; /* Adjust padding as needed */
+    font-size: 16px !important; /* Adjust font size as needed */
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -68,64 +76,66 @@ with st.sidebar:
                         st.session_state.model_count -= 1
                         st.rerun()
 
-    run = st.button("Generate")
+    run = st.button("Run Models", type="primary")
 
 # Main display area
 st.title("Running LLMs in parallel")
 
 if run and prompt.strip():
     model_inputs = [model for model in st.session_state.selected_models if model]
-    responses = []
-
+    
     if not model_inputs:
         st.warning("Please select at least one model to generate a response.")
     else:
-        for model in model_inputs:
-            start = time.time()
-            try:
-                response = requests.post(
-                    "http://localhost:11434/api/generate",
-                    json={"model": model, "prompt": prompt, "stream": False},
-                ).json()
+        cols = st.columns(len(model_inputs))
+        placeholders = [col.empty() for col in cols] # Create placeholders for each model's output
 
-                duration = round(time.time() - start, 2)
-                content = response.get("response", "").strip()
-                eval_count = response.get("eval_count", len(content.split()))
-                eval_rate = response.get("eval_rate", round(eval_count / duration, 2))
+        for i, model in enumerate(model_inputs):
+            with placeholders[i].container():
+                model_color = "blue" if i % 2 == 0 else "red"
+                st.markdown(
+                    f"<h3 style='color:{model_color};'>{model}</h3>",
+                    unsafe_allow_html=True
+                )
+                
+                # Use st.spinner for the loading indicator
+                with st.spinner(f"Running {model}..."): 
+                    start = time.time()
+                    try:
+                        response = requests.post(
+                            "http://localhost:11434/api/generate",
+                            json={"model": model, "prompt": prompt, "stream": False},
+                        ).json()
 
-                responses.append({
-                    "model": model,
-                    "duration": duration,
-                    "eval_count": eval_count,
-                    "eval_rate": eval_rate,
-                    "response": content
-                })
-            except Exception as e:
-                responses.append({
-                    "model": model,
-                    "duration": 0,
-                    "eval_count": 0,
-                    "eval_rate": 0,
-                    "response": f"Error: {e}"
-                })
+                        duration = round(time.time() - start, 2)
+                        content = response.get("response", "").strip()
+                        eval_count = response.get("eval_count", len(content.split()))
+                        eval_rate = response.get("eval_rate", round(eval_count / duration, 2))
 
-        if responses:
-            cols = st.columns(len(responses))
-            for i, res in enumerate(responses):
-                with cols[i]:
-                    model_color = "blue" if i % 2 == 0 else "red"
-                    st.markdown(
-                        f"<h3 style='color:{model_color};'>{res['model']}</h3>",
-                        unsafe_allow_html=True
-                    )
-                    st.markdown(
-                        f"""
-                        <div style="background-color:#e6f0ff; padding:10px; border-radius:8px; margin-bottom:10px;">
-                            <b>Duration</b>: <span style="color:#3366cc;">{res['duration']} secs</span><br>
-                            <b>Eval count</b>: <span style="color:green;">{res['eval_count']} tokens</span><br>
-                            <b>Eval rate</b>: <span style="color:green;">{res['eval_rate']} tokens/s</span>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                    st.write(res["response"])
+                        # Clear the spinner and display the actual response
+                        placeholders[i].empty() # Clear the placeholder content including the spinner
+                        with placeholders[i].container(): # Redraw content
+                            st.markdown(
+                                f"<h3 style='color:{model_color};'>{model}</h3>",
+                                unsafe_allow_html=True
+                            )
+                            st.markdown(
+                                f"""
+                                <div style="background-color:#e6f0ff; padding:10px; border-radius:8px; margin-bottom:10px;">
+                                    <b>Duration</b>: <span style="color:#3366cc;">{duration} secs</span><br>
+                                    <b>Eval count</b>: <span style="color:green;">{eval_count} tokens</span><br>
+                                    <b>Eval rate</b>: <span style="color:green;">{eval_rate} tokens/s</span>
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
+                            st.write(content)
+
+                    except Exception as e:
+                        placeholders[i].empty() # Clear the placeholder content including the spinner
+                        with placeholders[i].container(): # Redraw content
+                            st.markdown(
+                                f"<h3 style='color:{model_color};'>{model}</h3>",
+                                unsafe_allow_html=True
+                            )
+                            st.error(f"Error: {e}")
