@@ -47,7 +47,7 @@ if not models_available:
     st.warning("No models found. Ensure Ollama is running and has models pulled.")
     st.stop()
 
-HISTORY_FILE = "chat_history.json"
+HISTORY_FILE = "Horizontal_chat_history.json"
 
 def load_chat_history():
     if os.path.exists(HISTORY_FILE):
