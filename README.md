@@ -152,11 +152,11 @@ chmod +x run_streamlit.sh
 - If you have downloaded a new model while streamlit app is running, stop the streamlit app and rerun it. If not, new model will not be detected by streamlit and you cant see it in the dropdown while selecting the model.
 - Source files are provided for horizontal and vertical view for Prompt and Model selection. Use anything you'd like and rename it to app.py.
 
-## Prompt & Model Selection Horizontal View - Quick Look with 3 models
+## Prompt & Model Selection Horizontal View - Quick Look
 
 ![Alt Text](https://github.com/ChayScripts/Run-LLMs-in-Parallel/blob/main/Horizontal%20View.png)
 
-## Prompt & Model Selection Vertical View - Quick Look with 3 models
+## Prompt & Model Selection Vertical View - Quick Look
 
 ![Alt Text](https://github.com/ChayScripts/Run-LLMs-in-Parallel/blob/main/Vertical%20View.png)
 
