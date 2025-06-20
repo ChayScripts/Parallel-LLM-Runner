@@ -1,4 +1,4 @@
-# LLM Parallel Run
+# Parallel LLM Runner
 
 This project demonstrates how to load and run multiple LLMs using Ollama and Python (Streamlit & Requests).
 
