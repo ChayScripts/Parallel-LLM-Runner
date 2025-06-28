@@ -5,6 +5,7 @@ import concurrent.futures
 import json
 import os
 import re
+import pyperclip
 
 st.set_page_config(page_title="LLM Comparison", layout="wide")
 
@@ -98,7 +99,11 @@ with st.sidebar:
                     st.session_state.model_count -= 1
                     st.rerun()
 
-    run = st.button("Run Models", type="primary")
+    button_cols = st.columns(2)
+    with button_cols[0]:
+        regenerate = st.button("Regenerate")
+    with button_cols[1]:
+        run = st.button("Run Models", type="primary")
 
 st.title("Running LLMs in parallel")
 
@@ -127,25 +132,14 @@ def save_chat_history(history):
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = load_chat_history()
 
-if "current_run_results" not in st.session_state:
-    st.session_state.current_run_results = None
-
-def handle_delete_response(source_type, entry_index=None, model_response_idx_in_entry=None):
-    if source_type == "current":
-        if st.session_state.current_run_results and model_response_idx_in_entry is not None:
-            if 0 <= model_response_idx_in_entry < len(st.session_state.current_run_results["responses"]):
-                st.session_state.current_run_results["responses"].pop(model_response_idx_in_entry)
-                if not st.session_state.current_run_results["responses"]:
-                    st.session_state.current_run_results = None
-    elif source_type == "history":
-        if entry_index is not None and model_response_idx_in_entry is not None:
-            actual_conversation_index = len(st.session_state.chat_history) - 1 - entry_index
-            if (0 <= actual_conversation_index < len(st.session_state.chat_history) and
-                0 <= model_response_idx_in_entry < len(st.session_state.chat_history[actual_conversation_index]["responses"])):
-                st.session_state.chat_history[actual_conversation_index]["responses"].pop(model_response_idx_in_entry)
-                if not st.session_state.chat_history[actual_conversation_index]["responses"]:
-                    st.session_state.chat_history.pop(actual_conversation_index)
-                save_chat_history(st.session_state.chat_history)
+def handle_delete_response(entry_index=None, model_response_idx_in_entry=None):
+    if entry_index is not None and model_response_idx_in_entry is not None:
+        if (0 <= entry_index < len(st.session_state.chat_history) and
+            0 <= model_response_idx_in_entry < len(st.session_state.chat_history[entry_index]["responses"])):
+            st.session_state.chat_history[entry_index]["responses"].pop(model_response_idx_in_entry)
+            if not st.session_state.chat_history[entry_index]["responses"]:
+                st.session_state.chat_history.pop(entry_index)
+            save_chat_history(st.session_state.chat_history)
 
 def query_ollama_model(model_name, prompt_text):
     try:
@@ -187,7 +181,7 @@ def get_truncated_text(text, word_limit=50):
         return ' '.join(words[:50]) + "..."
     return text
 
-def display_interaction(entry, entry_idx=None, is_current_run=False):
+def display_interaction(entry, entry_idx=None):
     st.markdown(f"**Prompt:** {entry['prompt']}")
     if entry['responses']:
         cols = st.columns(len(entry['responses']))
@@ -209,7 +203,7 @@ def display_interaction(entry, entry_idx=None, is_current_run=False):
                 full_response_text = res["response"]
                 words = full_response_text.split()
                 content_is_longer_than_50_words = len(words) > 50
-                read_more_toggle_key_prefix = "current" if is_current_run else f"entry_{entry_idx}"
+                read_more_toggle_key_prefix = f"entry_{entry_idx}"
                 read_more_toggle_key = f"read_more_{read_more_toggle_key_prefix}_model_{i}"
 
                 if read_more_toggle_key not in st.session_state:
@@ -221,7 +215,7 @@ def display_interaction(entry, entry_idx=None, is_current_run=False):
                     st.write(full_response_text)
 
                 with st.container():
-                    button_cols = st.columns([0.5, 0.5])
+                    button_cols = st.columns(3)
                     with button_cols[0]:
                         if content_is_longer_than_50_words:
                             if not st.session_state[read_more_toggle_key]:
@@ -233,77 +227,69 @@ def display_interaction(entry, entry_idx=None, is_current_run=False):
                                     st.session_state[read_more_toggle_key] = False
                                     st.rerun()
                     with button_cols[1]:
+                        copy_button_key = f"copy_response_{read_more_toggle_key_prefix}_{i}"
+                        if st.button("Copy Output", key=copy_button_key):
+                            pyperclip.copy(full_response_text)
+                    with button_cols[2]:
                         delete_button_key = f"delete_response_{read_more_toggle_key_prefix}_{i}"
                         st.button(
                             "Delete This Response",
                             key=delete_button_key,
                             on_click=handle_delete_response,
-                            args=("current" if is_current_run else "history", entry_idx if not is_current_run else None, i)
+                            args=(entry_idx, i)
                         )
     st.markdown("---")
 
-if run and prompt.strip():
-    if st.session_state.current_run_results:
-        st.session_state.chat_history.append(st.session_state.current_run_results)
-        save_chat_history(st.session_state.chat_history)
-    st.session_state.current_run_results = None
+def run_models(prompt_text, models_to_run, spinner_text):
+    cols = st.columns(len(models_to_run))
+    for i, model in enumerate(models_to_run):
+        with cols[i]:
+            model_color = "blue" if i % 2 == 0 else "red"
+            st.markdown(f"<h3 style='color:{model_color};'>{model}</h3>", unsafe_allow_html=True)
 
-    model_inputs = [model for model in st.session_state.selected_models if model]
-    if not model_inputs:
-        st.warning("Please select at least one model to generate a response.")
-    else:
-        cols = st.columns(len(model_inputs))
-        model_spinners = {}
-        for i, model in enumerate(model_inputs):
-            with cols[i]:
-                model_color = "blue" if i % 2 == 0 else "red"
-                st.markdown(f"<h3 style='color:{model_color};'>{model}</h3>", unsafe_allow_html=True)
-                model_spinners[model] = st.empty()
-                with model_spinners[model].container():
-                    st.spinner(f"Running {model}...")
-
+    with st.spinner(spinner_text):
         raw_results = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(model_inputs)) as executor:
-            future_to_model = {executor.submit(query_ollama_model, model, prompt): model for model in model_inputs}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(models_to_run)) as executor:
+            future_to_model = {executor.submit(query_ollama_model, model, prompt_text): model for model in models_to_run}
             for future in concurrent.futures.as_completed(future_to_model):
                 result = future.result()
                 raw_results.append(result)
 
         ordered_responses = []
-        for model in model_inputs:
+        for model in models_to_run:
             for res in raw_results:
                 if res["model"] == model:
                     ordered_responses.append(res)
                     break
+        
+        new_entry = {"prompt": prompt_text, "responses": ordered_responses}
+        st.session_state.chat_history.append(new_entry)
+        save_chat_history(st.session_state.chat_history)
+    
+    st.rerun()
 
-        st.session_state.current_run_results = {"prompt": prompt, "responses": ordered_responses}
+if run and prompt.strip():
+    model_inputs = [model for model in st.session_state.selected_models if model]
+    if not model_inputs:
+        st.warning("Please select at least one model to generate a response.")
+    else:
+        run_models(prompt, model_inputs, "Generating responses...")
 
-        for i, res in enumerate(ordered_responses):
-            with cols[i]:
-                model_spinners[res['model']].empty()
-                st.markdown(
-                    f"""
-                    <div style="background-color:#e6f0ff; padding:10px; border-radius:8px; margin-bottom:10px;">
-                        <b>Duration</b>: <span style="color:#3366cc;">{res['duration']} secs</span><br>
-                        <b>Eval count</b>: <span style="color:green;">{res['eval_count']} tokens</span><br>
-                        <b>Eval rate</b>: <span style="color:green;">{res['eval_rate']} tokens/s</span>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-                st.write(res["response"])
+if regenerate:
+    if st.session_state.chat_history:
+        last_run_prompt = st.session_state.chat_history[-1]['prompt']
+        models_to_run = [model for model in st.session_state.selected_models if model]
+        if not models_to_run:
+            st.warning("Please select models to regenerate.")
+        else:
+            run_models(last_run_prompt, models_to_run, "Regenerating responses...")
+    else:
+        st.warning("No previous run to regenerate.")
 
-        st.rerun()
-
-if st.session_state.current_run_results:
-    st.subheader("Current Interaction")
-    display_interaction(st.session_state.current_run_results, is_current_run=True)
-else:
-    st.info("Enter a prompt and select models to start a new interaction.")
-
-st.subheader("Previous Interactions")
+st.subheader("Interactions")
 if st.session_state.chat_history:
     for entry_idx, entry in enumerate(reversed(st.session_state.chat_history)):
-        display_interaction(entry, entry_idx=entry_idx, is_current_run=False)
+        original_index = len(st.session_state.chat_history) - 1 - entry_idx
+        display_interaction(entry, entry_idx=original_index)
 else:
-    st.info("No previous interactions found.")
+    st.info("Enter a prompt and select models to start an interaction.")
