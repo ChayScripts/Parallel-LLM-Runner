@@ -39,7 +39,7 @@ I've been using Ollama and wanted a simple graphical user interface (GUI) for it
 4. Install the required packages:
 
    ```bash
-   pip install streamlit requests
+   pip install streamlit requests pyperclip pytz
    ```
 
 ### Linux
@@ -147,10 +147,10 @@ chmod +x run_streamlit.sh
 ## Note
 - Latest scripts in this repo will query all your models at same time. If you want quick output, load your ollama models in your machine before starting any streamlit commands. By default ollama loads model for 5 mins and unloads them automatically after 5 mins. To keep them for longer time, use OLLAMA_KEEP_ALIVE ollama parameter and set time in mins (Ex: 30m) or hours (Ex: 4h). So, this script will query all models at same time and as the models are loaded already, output will be faster. 
 - Vertical view denotes prompt and models are in vertical layout to the left. Horiztontal view denotes prompt and models are in horizontal layout.
-- In vertical view, you can move prompt and models window to the right as needed and move them to the left, to give more space to your output window.
+- In vertical view, you can move prompt and models window to the right as needed and move them to the left, to give more space to your output window or hide prompt and models selection section area using the left arrow at the top (above LLM Prompt & Models text)
 - Using this streamlit site you can run multiple LLMs at same time. But if your results shows one after the other, you should set OLLAMA_MAX_LOADED_MODELS = 2 (or any number as your hardware supports). Refer to Ollama documentation on how to use it in your OS version.
-- If you have downloaded a new model while streamlit app is running, stop the streamlit app and rerun it. If not, new model will not be detected by streamlit and you cant see it in the dropdown while selecting the model.
-- Source files are provided for horizontal and vertical view for Prompt and Model selection. Use anything you'd like and rename it to app.py.
+- If you download a new model while Streamlit app is running, stop the app and rerun it to detect the new model.
+- Source files are provided for horizontal and vertical views for prompt and model selection.
 
 ## Prompt & Model Selection Horizontal View - Quick Look
 
