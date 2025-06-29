@@ -60,7 +60,7 @@ I've been using Ollama and wanted a simple graphical user interface (GUI) for it
 4. Install the required packages:
 
    ```bash
-   pip install streamlit requests
+   pip install streamlit requests pyperclip pytz
    ```
 
 ### macOS
@@ -81,7 +81,7 @@ I've been using Ollama and wanted a simple graphical user interface (GUI) for it
 4. Install the required packages:
 
    ```bash
-   pip install streamlit requests
+   pip install streamlit requests pyperclip pytz
    ```
 
 ## Running the Application
